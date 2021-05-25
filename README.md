@@ -12,7 +12,7 @@ channel. Improvements are welcome! Just send a pull request.
 From your Redmine plugins directory, clone this repository as `redmine_slack` (note
 the underscore!):
 
-    git clone https://github.com/sciyoshi/redmine-slack.git redmine_slack
+    git clone https://github.com/skworks33/redmine-slack.git redmine_slack
 
 You will also need the `httpclient` dependency, which can be installed by running
 

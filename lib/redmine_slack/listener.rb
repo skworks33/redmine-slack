@@ -4,7 +4,7 @@ class SlackListener < Redmine::Hook::Listener
 	def redmine_slack_issues_new_after_save(context={})
 		issue = context[:issue]
 
-		channel = channel_for_project issue.project
+		channel = channel_for_user_or_group issue.assigned_to
 		url = url_for_project issue.project
 
 		return unless channel and url
@@ -41,14 +41,17 @@ class SlackListener < Redmine::Hook::Listener
 		issue = context[:issue]
 		journal = context[:journal]
 
-		channel = channel_for_project issue.project
+		channel = channel_for_user_or_group issue.assigned_to
 		url = url_for_project issue.project
+		mention = mention_for_user_or_group issue.assigned_to
 
-		return unless channel and url and Setting.plugin_redmine_slack['post_updates'] == '1'
+		return unless channel and url
+
+		return unless is_post_updates? issue.assigned_to # new
 		return if issue.is_private?
 		return if journal.private_notes?
 
-		msg = "[#{escape issue.project}] #{escape journal.user.to_s} updated <#{object_url issue}|#{escape issue}>#{mentions journal.notes}"
+		msg = "#{mention} [#{escape issue.project}] #{escape journal.user.to_s} updated <#{object_url issue}|#{escape issue}>#{mentions journal.notes}"
 
 		attachment = {}
 		attachment[:text] = escape journal.notes if journal.notes
@@ -62,7 +65,7 @@ class SlackListener < Redmine::Hook::Listener
 		journal = issue.current_journal
 		changeset = context[:changeset]
 
-		channel = channel_for_project issue.project
+		channel = channel_for_user_or_group issue.assigned_to
 		url = url_for_project issue.project
 
 		return unless channel and url and issue.save
@@ -198,6 +201,36 @@ private
 		].find{|v| v.present?}
 	end
 
+	def channel_for_user_or_group(assigned_to)
+		return nil if assigned_to.blank?
+
+		if assigned_to.class.name == "User"
+			cf = UserCustomField.find_by_name("Slack Channel")
+		elsif assigned_to.class.name == "Group"
+			cf = GroupCustomField.find_by_name("Slack Channel")
+		end
+
+		val = [
+			(assigned_to.custom_value_for(cf).value rescue nil),
+			Setting.plugin_redmine_slack['channel'],
+		].find{|v| v.present?}
+
+		# Channel name '-' is reserved for NOT notifying
+		return nil if val.to_s == '-'
+		val
+	end
+
+	def mention_for_user_or_group(assigned_to)
+		return nil if assigned_to.blank?
+
+		if assigned_to.class.name == "User"
+			cf = UserCustomField.find_by_name("Slack Mention")
+		elsif assigned_to.class.name == "Group"
+			cf = GroupCustomField.find_by_name("Slack Mention")
+		end
+
+		assigned_to.custom_value_for(cf).value rescue nil
+	end
 	def channel_for_project(proj)
 		return nil if proj.blank?
 
@@ -212,6 +245,18 @@ private
 		# Channel name '-' is reserved for NOT notifying
 		return nil if val.to_s == '-'
 		val
+	end
+
+	def is_post_updates?(assigned_to)
+		return nil if assigned_to.blank?
+
+		if assigned_to.class.name == "User"
+			cf = UserCustomField.find_by_name("Slack Post Updates")
+		elsif assigned_to.class.name == "Group"
+			cf = GroupCustomField.find_by_name("Slack Post Updates")
+		end
+
+		assigned_to.custom_value_for(cf).value rescue nil
 	end
 
 	def detail_to_field(detail)

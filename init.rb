@@ -4,8 +4,8 @@ require_dependency 'redmine_slack/listener'
 
 Redmine::Plugin.register :redmine_slack do
 	name 'Redmine Slack'
-	author 'Samuel Cormier-Iijima'
-	url 'https://github.com/sciyoshi/redmine-slack'
+	author 'Samuel Cormier-Iijima & skworks33'
+	url 'https://github.com/skworks33/redmine-slack'
 	author_url 'http://www.sciyoshi.com'
 	description 'Slack chat integration'
 	version '0.2'
@@ -16,7 +16,7 @@ Redmine::Plugin.register :redmine_slack do
 		:default => {
 			'callback_url' => 'http://slack.com/callback/',
 			'channel' => nil,
-			'icon' => 'https://raw.github.com/sciyoshi/redmine-slack/gh-pages/icon.png',
+			'icon' => 'https://raw.githubusercontent.com/skworks33/redmine-slack/gh-pages/icon.png',
 			'username' => 'redmine',
 			'display_watchers' => 'no'
 		},

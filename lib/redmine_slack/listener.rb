@@ -6,11 +6,12 @@ class SlackListener < Redmine::Hook::Listener
 
 		channel = channel_for_user_or_group issue.assigned_to
 		url = url_for_project issue.project
+		mention = mention_for_user_or_group issue.assigned_to
 
 		return unless channel and url
 		return if issue.is_private?
 
-		msg = "[#{escape issue.project}] #{escape issue.author} created <#{object_url issue}|#{escape issue}>#{mentions issue.description}"
+		msg = "#{mention} \n[#{escape issue.project}] #{escape issue.author} created \n<#{object_url issue}|#{escape issue}>#{mentions issue.description}"
 
 		attachment = {}
 		attachment[:text] = escape issue.description if issue.description
@@ -51,7 +52,7 @@ class SlackListener < Redmine::Hook::Listener
 		return if issue.is_private?
 		return if journal.private_notes?
 
-		msg = "#{mention} [#{escape issue.project}] #{escape journal.user.to_s} updated <#{object_url issue}|#{escape issue}>#{mentions journal.notes}"
+		msg = "#{mention} \n[#{escape issue.project}] #{escape journal.user.to_s} updated \n<#{object_url issue}|#{escape issue}>#{mentions journal.notes}"
 
 		attachment = {}
 		attachment[:text] = escape journal.notes if journal.notes
@@ -67,11 +68,12 @@ class SlackListener < Redmine::Hook::Listener
 
 		channel = channel_for_user_or_group issue.assigned_to
 		url = url_for_project issue.project
+		mention = mention_for_user_or_group issue.assigned_to
 
 		return unless channel and url and issue.save
 		return if issue.is_private?
 
-		msg = "[#{escape issue.project}] #{escape journal.user.to_s} updated <#{object_url issue}|#{escape issue}>"
+		msg = "#{mention} \n[#{escape issue.project}] #{escape journal.user.to_s} updated \n<#{object_url issue}|#{escape issue}>"
 
 		repository = changeset.repository
 

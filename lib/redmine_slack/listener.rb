@@ -5,10 +5,9 @@ class SlackListener < Redmine::Hook::Listener
 		issue = context[:issue]
 
 		channel = channel_for_user_or_group issue.assigned_to
-		url = url_for_project issue.project
 		mention = mention_for_user_or_group issue.assigned_to
 
-		return unless channel and url
+		return unless channel
 		return if issue.is_private?
 
 		msg = "#{mention} \n[#{escape issue.project}] #{escape issue.author} created \n<#{object_url issue}|#{escape issue}>#{mentions issue.description}"
@@ -35,7 +34,7 @@ class SlackListener < Redmine::Hook::Listener
 			:short => true
 		} if Setting.plugin_redmine_slack['display_watchers'] == 'yes'
 
-		speak msg, channel, attachment, url
+		speak msg, channel, attachment
 	end
 
 	def redmine_slack_issues_edit_after_save(context={})
@@ -43,10 +42,9 @@ class SlackListener < Redmine::Hook::Listener
 		journal = context[:journal]
 
 		channel = channel_for_user_or_group issue.assigned_to
-		url = url_for_project issue.project
 		mention = mention_for_user_or_group issue.assigned_to
 
-		return unless channel and url
+		return unless channel
 
 		return unless is_post_updates? issue.assigned_to # new
 		return if issue.is_private?
@@ -58,7 +56,7 @@ class SlackListener < Redmine::Hook::Listener
 		attachment[:text] = escape journal.notes if journal.notes
 		attachment[:fields] = journal.details.map { |d| detail_to_field d }
 
-		speak msg, channel, attachment, url
+		speak msg, channel, attachment
 	end
 
 	def model_changeset_scan_commit_for_issue_ids_pre_issue_update(context={})
@@ -67,10 +65,9 @@ class SlackListener < Redmine::Hook::Listener
 		changeset = context[:changeset]
 
 		channel = channel_for_user_or_group issue.assigned_to
-		url = url_for_project issue.project
 		mention = mention_for_user_or_group issue.assigned_to
 
-		return unless channel and url and issue.save
+		return unless channel and issue.save
 		return if issue.is_private?
 
 		msg = "#{mention} \n[#{escape issue.project}] #{escape journal.user.to_s} updated \n<#{object_url issue}|#{escape issue}>"
@@ -106,7 +103,7 @@ class SlackListener < Redmine::Hook::Listener
 		attachment[:text] = ll(Setting.default_language, :text_status_changed_by_changeset, "<#{revision_url}|#{escape changeset.comments}>")
 		attachment[:fields] = journal.details.map { |d| detail_to_field d }
 
-		speak msg, channel, attachment, url
+		speak msg, channel, attachment
 	end
 
 	def controller_wiki_edit_after_save(context = { })
@@ -124,7 +121,6 @@ class SlackListener < Redmine::Hook::Listener
 		end
 
 		channel = channel_for_project project
-		url = url_for_project project
 
 		attachment = nil
 		if not page.content.comments.empty?
@@ -132,22 +128,28 @@ class SlackListener < Redmine::Hook::Listener
 			attachment[:text] = "#{escape page.content.comments}"
 		end
 
-		speak comment, channel, attachment, url
+		speak comment, channel, attachment
 	end
 
-	def speak(msg, channel, attachment=nil, url=nil)
-		url = Setting.plugin_redmine_slack['slack_url'] if not url
+	def speak(msg, channel, attachment=nil)
+		url = 'https://slack.com/api/chat.postMessage'
+		auth_token = Setting.plugin_redmine_slack['auth_token'] # Bot User OAuth Token
 		username = Setting.plugin_redmine_slack['username']
 		icon = Setting.plugin_redmine_slack['icon']
 
+		# create header
+		headers = {
+			'Content-type' => 'application/json',
+			'Authorization' => "Bearer #{auth_token}"
+		}
+
+		# create post body
 		params = {
 			:text => msg,
 			:link_names => 1,
 		}
-
 		params[:username] = username if username
 		params[:channel] = channel if channel
-
 		params[:attachments] = [attachment] if attachment
 
 		if icon and not icon.empty?
@@ -162,7 +164,7 @@ class SlackListener < Redmine::Hook::Listener
 			client = HTTPClient.new
 			client.ssl_config.cert_store.set_default_paths
 			client.ssl_config.ssl_version = :auto
-			client.post_async url, {:payload => params.to_json}
+			client.post_async url, :body => params.to_json, :header => headers
 		rescue Exception => e
 			Rails.logger.warn("cannot connect to #{url}")
 			Rails.logger.warn(e)
@@ -189,18 +191,6 @@ private
 				:protocol => Setting.protocol
 			}))
 		end
-	end
-
-	def url_for_project(proj)
-		return nil if proj.blank?
-
-		cf = ProjectCustomField.find_by_name("Slack URL")
-
-		return [
-			(proj.custom_value_for(cf).value rescue nil),
-			(url_for_project proj.parent),
-			Setting.plugin_redmine_slack['slack_url'],
-		].find{|v| v.present?}
 	end
 
 	def channel_for_user_or_group(assigned_to)

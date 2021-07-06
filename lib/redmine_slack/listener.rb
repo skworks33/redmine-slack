@@ -248,7 +248,8 @@ private
 			cf = GroupCustomField.find_by_name("Slack Post Updates")
 		end
 
-		assigned_to.custom_value_for(cf).value rescue nil
+		val = assigned_to.custom_value_for(cf).value rescue nil
+		if val == '1' then true else false end
 	end
 
 	def detail_to_field(detail)

@@ -163,7 +163,7 @@ class Listener < Redmine::Hook::Listener
 
 		begin
 			client = HTTPClient.new
-			client.ssl_config.cert_store.set_default_paths
+			client.ssl_config.add_trust_ca(OpenSSL::X509::DEFAULT_CERT_FILE)
 			client.ssl_config.ssl_version = :auto
 			client.post_async url, :body => params.to_json, :header => headers
 		rescue Exception => e

@@ -295,7 +295,7 @@ private
 			category = IssueCategory.find(detail.value) rescue nil
 			value = escape category.to_s
 		when "assigned_to"
-			user = User.find(detail.value) rescue nil
+			user = Principal.find(detail.value) rescue nil
 			value = escape user.to_s
 		when "fixed_version"
 			version = Version.find(detail.value) rescue nil

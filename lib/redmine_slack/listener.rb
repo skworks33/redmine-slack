@@ -74,8 +74,8 @@ class Listener < Redmine::Hook::Listener
 	# Returns the old and/or new assignee(s) based on the assignee change detail. If there's no assignee change, returns the current assignee.
 	def get_assignees(assignee_change_detail, issue)
 		if assignee_change_detail
-			old_assignee = assignee_change_detail.old_value && User.find_by(id: assignee_change_detail.old_value)
-			new_assignee = User.find(assignee_change_detail.value)
+			old_assignee = assignee_change_detail.old_value && Principal.find_by(id: assignee_change_detail.old_value)
+			new_assignee = Principal.find(assignee_change_detail.value)
 			[old_assignee, new_assignee].compact
 		else
 			[issue.assigned_to].compact

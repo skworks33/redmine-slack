@@ -42,22 +42,44 @@ class Listener < Redmine::Hook::Listener
 		issue = context[:issue]
 		journal = context[:journal]
 
-		channel = channel_for_user_or_group issue.assigned_to
-		mention = mention_for_user_or_group issue.assigned_to
+		return if issue.is_private? || journal.private_notes?
 
-		return unless channel
+		# Check if the assignee has been changed
+		assignee_change_detail = journal.details.find { |detail| detail.prop_key == 'assigned_to_id' }
 
-		return unless is_post_updates? issue.assigned_to # new
-		return if issue.is_private?
-		return if journal.private_notes?
+		# Get assignees based on the assignee_change_detail
+		assignees = get_assignees(assignee_change_detail, issue)
 
-		msg = "#{mention} \n[#{escape issue.project}] #{escape journal.user.to_s} updated \n<#{object_url issue}|#{escape issue}>#{mentions journal.notes}"
+		# Perform the following actions for each assignee
+		assignees.each do |assignee|
+			channel = channel_for_user_or_group assignee
+			mention = mention_for_user_or_group assignee
 
-		attachment = {}
-		attachment[:text] = escape journal.notes if journal.notes
-		attachment[:fields] = journal.details.map { |d| detail_to_field d }
+			# If the assignee has been changed, or if the following conditions are met, send the message:
+			# - The channel exists
+			# - The setting to post updates is turned on for the assignee
+			next unless assignee_change_detail || (channel && is_post_updates?(assignee))
 
-		speak msg, channel, attachment
+			msg = "#{mention} \n[#{escape issue.project}] #{escape journal.user.to_s} updated \n<#{object_url issue}|#{escape issue}>#{mentions journal.notes}"
+
+			attachment = {}
+			attachment[:text] = escape journal.notes if journal.notes
+			attachment[:fields] = journal.details.map { |d| detail_to_field d }
+
+			# Send the message
+			speak msg, channel, attachment
+		end
+	end
+
+	# Returns the old and/or new assignee(s) based on the assignee change detail. If there's no assignee change, returns the current assignee.
+	def get_assignees(assignee_change_detail, issue)
+		if assignee_change_detail
+			old_assignee = assignee_change_detail.old_value && Principal.find_by(id: assignee_change_detail.old_value)
+			new_assignee = Principal.find(assignee_change_detail.value)
+			[old_assignee, new_assignee].compact
+		else
+			[issue.assigned_to].compact
+		end
 	end
 
 	def model_changeset_scan_commit_for_issue_ids_pre_issue_update(context={})
